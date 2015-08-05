@@ -2,7 +2,7 @@
 
 #include "sleep.h"
 
-//#define USE_DEFAULT_USLEEP
+#define USE_DEFAULT_USLEEP
 
 #if !defined(USE_DEFAULT_USLEEP)
 
@@ -86,7 +86,7 @@ void usleep(unsigned int useconds)
 	//printf( "[usleep] useconds=%d, tCur1=%08X, tEnd=%08X, tCur=%08X, iterations=%d\r\n", useconds, tCur1, tEnd, tCur, iterations );
 	if ( invalid )
 	{
-	   xil_printf( "[usleep] ERROR : function terminated too early ...\r\n" );
+	   printf( "[usleep] ERROR : function terminated too early ...\r\n" );
        return -1;
 	}
 

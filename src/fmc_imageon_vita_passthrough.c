@@ -64,18 +64,18 @@ int fmc_imageon_vita_passthrough_init( fmc_imageon_vita_passthrough_t *pDemo )
    Xuint32 timeout = 100;
    Xuint32 iterations = 0;
 
-   xil_printf("\n\r");
-   xil_printf("------------------------------------------------------\n\r");
-   xil_printf("--          FMC-IMAGEON VITA Pass-Through           --\n\r");
-   xil_printf("------------------------------------------------------\n\r");
-   xil_printf("\n\r");
+   printf("\n\r");
+   printf("------------------------------------------------------\n\r");
+   printf("--          FMC-IMAGEON VITA Pass-Through           --\n\r");
+   printf("------------------------------------------------------\n\r");
+   printf("\n\r");
 
-   xil_printf( "FMC-IMAGEON Initialization ...\n\r" );
+   printf( "FMC-IMAGEON Initialization ...\n\r" );
 
    ret = fmc_iic_xps_init(&(pDemo->fmc_imageon_iic),"FMC-IMAGEON I2C Controller", pDemo->uBaseAddr_IIC_FmcImageon );
    if ( !ret )
    {
-      xil_printf( "ERROR : Failed to open FMC-IIC driver\n\r" );
+      printf( "ERROR : Failed to open FMC-IIC driver\n\r" );
       exit(0);
    }
 
@@ -83,7 +83,7 @@ int fmc_imageon_vita_passthrough_init( fmc_imageon_vita_passthrough_t *pDemo )
    pDemo->fmc_imageon.bVerbose = pDemo->bVerbose;
 
    // Configure Video Clock Synthesizer
-   xil_printf( "Video Clock Synthesizer Configuration ...\n\r" );
+   printf( "Video Clock Synthesizer Configuration ...\n\r" );
    fmc_imageon_vclk_init( &(pDemo->fmc_imageon) );
    fmc_imageon_vclk_config( &(pDemo->fmc_imageon), FMC_IMAGEON_VCLK_FREQ_148_500_000);
    sleep(1);
@@ -111,26 +111,26 @@ int fmc_imageon_vita_passthrough_init( fmc_imageon_vita_passthrough_t *pDemo )
    pDemo->hdmio_timing.VSyncPolarity =    1;
    pDemo->hdmio_timing.VBackPorch    =   36;
 
-   xil_printf( "ADV7511 Video Output Information\n\r" );
-   xil_printf( "\tVideo Output     = %s", pDemo->hdmio_timing.IsHDMI ? "HDMI" : "DVI" );
-   xil_printf( "%s", pDemo->hdmio_timing.IsEncrypted ? ", HDCP Encrypted" : "" );
-   xil_printf( ", %s\n\r", pDemo->hdmio_timing.IsInterlaced ? "Interlaced" : "Progressive" );
-   xil_printf( "\tColor Depth      = %d bits per channel\n\r", pDemo->hdmio_timing.ColorDepth );
-   xil_printf( "\tHSYNC Timing     = hav=%04d, hfp=%02d, hsw=%02d(hsp=%d), hbp=%03d\n\r",
+   printf( "ADV7511 Video Output Information\n\r" );
+   printf( "\tVideo Output     = %s", pDemo->hdmio_timing.IsHDMI ? "HDMI" : "DVI" );
+   printf( "%s", pDemo->hdmio_timing.IsEncrypted ? ", HDCP Encrypted" : "" );
+   printf( ", %s\n\r", pDemo->hdmio_timing.IsInterlaced ? "Interlaced" : "Progressive" );
+   printf( "\tColor Depth      = %d bits per channel\n\r", pDemo->hdmio_timing.ColorDepth );
+   printf( "\tHSYNC Timing     = hav=%04d, hfp=%02d, hsw=%02d(hsp=%d), hbp=%03d\n\r",
       pDemo->hdmio_timing.HActiveVideo,
       pDemo->hdmio_timing.HFrontPorch,
       pDemo->hdmio_timing.HSyncWidth, pDemo->hdmio_timing.HSyncPolarity,
       pDemo->hdmio_timing.HBackPorch
       );
-   xil_printf( "\tVSYNC Timing     = vav=%04d, vfp=%02d, vsw=%02d(vsp=%d), vbp=%03d\n\r",
+   printf( "\tVSYNC Timing     = vav=%04d, vfp=%02d, vsw=%02d(vsp=%d), vbp=%03d\n\r",
       pDemo->hdmio_timing.VActiveVideo,
       pDemo->hdmio_timing.VFrontPorch,
       pDemo->hdmio_timing.VSyncWidth, pDemo->hdmio_timing.VSyncPolarity,
       pDemo->hdmio_timing.VBackPorch
       );
-   xil_printf( "\tVideo Dimensions = %d x %d\n\r", pDemo->hdmio_width, pDemo->hdmio_height );
+   printf( "\tVideo Dimensions = %d x %d\n\r", pDemo->hdmio_width, pDemo->hdmio_height );
 
-   xil_printf( "HDMI Output Initialization ...\n\r" );
+   printf( "HDMI Output Initialization ...\n\r" );
    ret = fmc_imageon_hdmio_init( &(pDemo->fmc_imageon),
  	                             1,                      // hdmioEnable = 1
  	                             &(pDemo->hdmio_timing), // pTiming
@@ -138,7 +138,7 @@ int fmc_imageon_vita_passthrough_init( fmc_imageon_vita_passthrough_t *pDemo )
  	                             );
    if ( !ret )
    {
-      xil_printf( "ERROR : Failed to init HDMI Output Interface\n\r" );
+      printf( "ERROR : Failed to init HDMI Output Interface\n\r" );
       exit(0);
    }
 
@@ -147,36 +147,36 @@ int fmc_imageon_vita_passthrough_init( fmc_imageon_vita_passthrough_t *pDemo )
 
    if ( iterations > 0 )
    {
-      xil_printf( "\n\rPress ENTER to re-start ...\n\r" );
+      printf( "\n\rPress ENTER to re-start ...\n\r" );
       getchar();
    }
    iterations++;
 
    // FMC-IMAGEON VITA Receiver Initialization
-   xil_printf( "FMC-IMAGEON VITA Receiver Initialization ...\n\r" );
+   printf( "FMC-IMAGEON VITA Receiver Initialization ...\n\r" );
    onsemi_vita_init( &(pDemo->vita_receiver), "VITA-2000", pDemo->uBaseAddr_VITA_SPI, pDemo->uBaseAddr_VITA_CAM );
    pDemo->vita_receiver.uManualTap = 25;
-   xil_printf( "FMC-IMAGEON VITA SPI Config for 10MHz ...\n\r" );
+   printf( "FMC-IMAGEON VITA SPI Config for 10MHz ...\n\r" );
    // axi4lite_0_clk = 50MHz
    onsemi_vita_spi_config( &(pDemo->vita_receiver), (50000000/10000000) );
 
    // VITA-2000 Initialization
-   xil_printf( "FMC-IMAGEON VITA Initialization ...\n\r" );
+   printf( "FMC-IMAGEON VITA Initialization ...\n\r" );
    ret = onsemi_vita_sensor_initialize( &(pDemo->vita_receiver), SENSOR_INIT_ENABLE, 1 ); // Be verbose
    if ( ret == 0 )
    {
-       xil_printf( "VITA sensor failed to initialize ...\n\r" );
+       printf( "VITA sensor failed to initialize ...\n\r" );
       //return -1;
       return XST_SUCCESS;
    }
 
    sleep(1);
 
-   xil_printf( "FMC-IMAGEON VITA Configuration for 1080P60 timing ...\n\r" );
+   printf( "FMC-IMAGEON VITA Configuration for 1080P60 timing ...\n\r" );
    ret = onsemi_vita_sensor_1080P60( &(pDemo->vita_receiver), pDemo->bVerbose );
    if ( ret == 0 )
    {
-      xil_printf( "VITA sensor failed to configure for 1080P60 timing ...\n\r" );
+      printf( "VITA sensor failed to configure for 1080P60 timing ...\n\r" );
       //return -1;
       return XST_SUCCESS;
    }
@@ -186,11 +186,11 @@ int fmc_imageon_vita_passthrough_init( fmc_imageon_vita_passthrough_t *pDemo )
    sleep(1);
    onsemi_vita_get_status( &(pDemo->vita_receiver), &(pDemo->vita_status_t2), 0 );
    //
-   xil_printf( "VITA Status = \n\r" );
-   xil_printf("\tImage Width  = %d\n\r", pDemo->vita_status_t1.cntImagePixels * 4 );
-   xil_printf("\tImage Height = %d\n\r", pDemo->vita_status_t1.cntImageLines  );
-   xil_printf("\tFrame Rate   = %d frames/sec\n\r", pDemo->vita_status_t2.cntFrames - pDemo->vita_status_t1.cntFrames );
-   xil_printf("\tCRC Status   = %X\n\r", pDemo->vita_status_t2.crcStatus );
+   printf( "VITA Status = \n\r" );
+   printf("\tImage Width  = %d\n\r", pDemo->vita_status_t1.cntImagePixels * 4 );
+   printf("\tImage Height = %d\n\r", pDemo->vita_status_t1.cntImageLines  );
+   printf("\tFrame Rate   = %d frames/sec\n\r", pDemo->vita_status_t2.cntFrames - pDemo->vita_status_t1.cntFrames );
+   printf("\tCRC Status   = %X\n\r", pDemo->vita_status_t2.crcStatus );
 
    if ( pDemo->bVerbose )
    {
@@ -212,26 +212,26 @@ int fmc_imageon_vita_passthrough_init( fmc_imageon_vita_passthrough_t *pDemo )
 
 #if defined(XPAR_XVTC_NUM_INSTANCES)
    // Configure VTC on output data path
-   xil_printf( "Video Timing Controller (generator) Initialization ...\n\r" );
+   printf( "Video Timing Controller (generator) Initialization ...\n\r" );
    vgen_init( &(pDemo->vtc_hdmio_generator), pDemo->uDeviceId_VTC_HdmioGenerator );
    vgen_config( &(pDemo->vtc_hdmio_generator), pDemo->hdmio_resolution, 1 );
 #endif
 
 //#if defined(XPAR_CFA_NUM_INSTANCES)
 #if defined(XPAR_CFA_0_BASEADDR)
-   xil_printf( "Color Filter Array Interpolation (CFA) Initialization ...\n\r" );
+   printf( "Color Filter Array Interpolation (CFA) Initialization ...\n\r" );
    pDemo->pCfa_config = XCfa_LookupConfig(pDemo->uDeviceId_CFA);
    XCfa_CfgInitialize(&(pDemo->cfa), pDemo->pCfa_config, pDemo->pCfa_config->BaseAddress);
    XCfa_Reset( &(pDemo->cfa) );
    XCfa_SetBayerPhase( &(pDemo->cfa), XCFA_RGRG_COMBINATION );
    XCfa_RegUpdateEnable( &(pDemo->cfa) );
    XCfa_Enable( &(pDemo->cfa) );
-   xil_printf("\tCFA done\r\n");
+   printf("\tCFA done\r\n");
 #endif
 
-   xil_printf("\n\r");
-   xil_printf( "Done\n\r" );
-   xil_printf("\n\r");
+   printf("\n\r");
+   printf( "Done\n\r" );
+   printf("\n\r");
 
    sleep(1);
   }

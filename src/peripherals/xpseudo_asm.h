@@ -1,6 +1,6 @@
 /******************************************************************************
 *
-* Copyright (C) 2010 - 2014 Xilinx, Inc.  All rights reserved.
+* Copyright (C) 2009 - 2014 Xilinx, Inc.  All rights reserved.
 *
 * Permission is hereby granted, free of charge, to any person obtaining a copy
 * of this software and associated documentation files (the "Software"), to deal
@@ -29,75 +29,28 @@
 * this Software without prior written authorization from Xilinx.
 *
 ******************************************************************************/
-
-#include "xparameters.h"
-#include "xil_cache.h"
-
-#include "platform_config.h"
-
-/*
- * Uncomment the following line if ps7 init source files are added in the
- * source directory for compiling example outside of SDK.
- */
-/*#include "ps7_init.h"*/
-
-#ifdef STDOUT_IS_16550
- #include "xuartns550_l.h"
-
- #define UART_BAUD 9600
+/*****************************************************************************/
+/**
+*
+* @file xpseudo_asm.h
+*
+* This header file contains macros for using inline assembler code.
+*
+* <pre>
+* MODIFICATION HISTORY:
+*
+* Ver   Who  Date     Changes
+* ----- ---- -------- -----------------------------------------------
+* 1.00a ecm  10/18/09 First release
+* 3.04a sdm  01/02/12 Remove redundant dsb in mcr instruction.
+* </pre>
+*
+******************************************************************************/
+#include "xreg_cortexa9.h"
+#ifdef __GNUC__
+ #include "xpseudo_asm_gcc.h"
+#elif defined (__ICCARM__)
+ #include "xpseudo_asm_iccarm.h"
+#else
+ #include "xpseudo_asm_rvct.h"
 #endif
-
-void
-enable_caches()
-{
-#ifdef __PPC__
-    Xil_ICacheEnableRegion(CACHEABLE_REGION_MASK);
-    Xil_DCacheEnableRegion(CACHEABLE_REGION_MASK);
-#elif __MICROBLAZE__
-#ifdef XPAR_MICROBLAZE_USE_ICACHE
-    Xil_ICacheEnable();
-#endif
-#ifdef XPAR_MICROBLAZE_USE_DCACHE
-    Xil_DCacheEnable();
-#endif
-#endif
-}
-
-void
-disable_caches()
-{
-    Xil_DCacheDisable();
-    Xil_ICacheDisable();
-}
-
-void
-init_uart()
-{
-#ifdef STDOUT_IS_16550
-    XUartNs550_SetBaud(STDOUT_BASEADDR, XPAR_XUARTNS550_CLOCK_HZ, UART_BAUD);
-    XUartNs550_SetLineControlReg(STDOUT_BASEADDR, XUN_LCR_8_DATA_BITS);
-#endif
-#ifdef STDOUT_IS_PS7_UART
-    /* Bootrom/BSP configures PS7 UART to 115200 bps */
-#endif
-}
-
-void
-init_platform()
-{
-    /*
-     * If you want to run this example outside of SDK,
-     * uncomment the following line and also #include "ps7_init.h" at the top.
-     * Make sure that the ps7_init.c and ps7_init.h files are included
-     * along with this example source files for compilation.
-     */
-    /* ps7_init();*/
-    enable_caches();
-    init_uart();
-}
-
-void
-cleanup_platform()
-{
-    disable_caches();
-}

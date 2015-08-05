@@ -46,28 +46,42 @@
  */
 
 #include <stdio.h>
-#include "platform.h"
+#include <unistd.h>
+#include <fcntl.h>
+#include <sys/mman.h>
 
 #include "fmc_imageon_vita_passthrough.h"
 fmc_imageon_vita_passthrough_t demo;
 
-//void print(char *str);
-void print( const char *str );
-
 int main()
 {
-    init_platform();
+	unsigned int i;
+    printf("Starting passthrough_linux application\n\r");
+    int mem = open("/dev/mem", O_RDWR);
 
-    print("Hello World\n\r");
-
-    demo.uBaseAddr_IIC_FmcImageon = XPAR_FMC_IMAGEON_IIC_0_BASEADDR;
-    demo.uBaseAddr_VITA_SPI  = XPAR_FMC_IMAGEON_VITA_COLOR_ONSEMI_VITA_SPI_0_S00_AXI_BASEADDR;
-    demo.uBaseAddr_VITA_CAM  = XPAR_FMC_IMAGEON_VITA_COLOR_ONSEMI_VITA_CAM_0_S00_AXI_BASEADDR;
-    //demo.uDeviceId_VTC_HdmioGenerator = XPAR_FMC_IMAGEON_HDMIO_RGB_V_TC_0_DEVICE_ID;
-    //demo.uDeviceId_CFA = XPAR_CFA_0_DEVICE_ID;
+    demo.uBaseAddr_IIC_FmcImageon = (Xuint32)mmap(NULL, 0x400, PROT_READ | PROT_WRITE, MAP_SHARED, mem, XPAR_FMC_IMAGEON_IIC_0_BASEADDR);
+    demo.uBaseAddr_VITA_SPI = (Xuint32)mmap(NULL, 0x400, PROT_READ | PROT_WRITE, MAP_SHARED, mem, XPAR_FMC_IMAGEON_VITA_COLOR_ONSEMI_VITA_SPI_0_S00_AXI_BASEADDR);
+    demo.uBaseAddr_VITA_CAM = (Xuint32)mmap(NULL, 0x400, PROT_READ | PROT_WRITE, MAP_SHARED, mem, XPAR_FMC_IMAGEON_VITA_COLOR_ONSEMI_VITA_CAM_0_S00_AXI_BASEADDR);
     demo.bVerbose = FALSE;
-    fmc_imageon_vita_passthrough_init( &demo );
 
-    cleanup_platform();
+    printf("base addresses:\n");
+    printf("IIC: %lx\n", demo.uBaseAddr_IIC_FmcImageon);
+    printf("VITA_SPI: %lx\n", demo.uBaseAddr_VITA_SPI);
+    printf("VITA_CAM: %lx\n", demo.uBaseAddr_VITA_CAM);
+    if(demo.uBaseAddr_IIC_FmcImageon == -1 || demo.uBaseAddr_VITA_SPI == -1 || demo.uBaseAddr_VITA_CAM == 1){
+    	printf("Address mapping failed!\n");
+    	return(0);
+    }
+
+    fmc_imageon_vita_passthrough_init( &demo );
+    /*
+    unsigned long vdma = (unsigned long)mmap(NULL, 0x400, PROT_READ | PROT_WRITE, MAP_SHARED, mem, XPAR_AXI_VDMA_0_BASEADDR);
+    printf("vdma: %lx\n", vdma);
+
+    //Xil_Out32(vdma + 0xa0, 0x7d0);
+    for(i = 0; i < 20; i++){
+      printf("0x%x:  0x%lx\n", 4*i, Xil_In32(demo.uBaseAddr_IIC_FmcImageon + 4*i));
+    }*/
+
     return 0;
 }
