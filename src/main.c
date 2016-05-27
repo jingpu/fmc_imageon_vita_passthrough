@@ -62,17 +62,13 @@ int main()
     demo.uBaseAddr_IIC_FmcImageon = (Xuint32)mmap(NULL, 0x400, PROT_READ | PROT_WRITE, MAP_SHARED, mem, XPAR_FMC_IMAGEON_IIC_0_BASEADDR);
     demo.uBaseAddr_VITA_SPI = (Xuint32)mmap(NULL, 0x400, PROT_READ | PROT_WRITE, MAP_SHARED, mem, XPAR_FMC_IMAGEON_VITA_COLOR_ONSEMI_VITA_SPI_0_S00_AXI_BASEADDR);
     demo.uBaseAddr_VITA_CAM = (Xuint32)mmap(NULL, 0x400, PROT_READ | PROT_WRITE, MAP_SHARED, mem, XPAR_FMC_IMAGEON_VITA_COLOR_ONSEMI_VITA_CAM_0_S00_AXI_BASEADDR);
-    demo.bVerbose = FALSE;
 
-    printf("base addresses:\n");
-    printf("IIC: %lx\n", demo.uBaseAddr_IIC_FmcImageon);
-    printf("VITA_SPI: %lx\n", demo.uBaseAddr_VITA_SPI);
-    printf("VITA_CAM: %lx\n", demo.uBaseAddr_VITA_CAM);
     if(demo.uBaseAddr_IIC_FmcImageon == -1 || demo.uBaseAddr_VITA_SPI == -1 || demo.uBaseAddr_VITA_CAM == 1){
-    	printf("Address mapping failed!\n");
+    	printf("Address mapping failed, are you root?\n");
     	return(0);
     }
 
+    demo.bVerbose = TRUE;
     fmc_imageon_vita_passthrough_init( &demo );
     /*
     unsigned long vdma = (unsigned long)mmap(NULL, 0x400, PROT_READ | PROT_WRITE, MAP_SHARED, mem, XPAR_AXI_VDMA_0_BASEADDR);

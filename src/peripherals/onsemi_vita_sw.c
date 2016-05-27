@@ -539,28 +539,28 @@ int onsemi_vita_spi_read( onsemi_vita_t *pContext, Xuint16 uAddr, Xuint16 *pData
 
    // Make sure the RXFIFO is empty
    uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
-   //printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
+   printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
    while ( !(uStatus & ONSEMI_VITA_SPI_RXFIFO_EMPTY_BIT) )
    {
      // Pop (previous) Response from RXFIFO
      ONSEMI_VITA_SPI_mWriteSlaveReg3(pContext->uBaseAddr_SPI, 0, 0xABBAABBA );
 
      uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
-     //printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
+     printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
    }
 
    // Wait until TXFIFO is not full
-   timeout = 99;
+   timeout = 5;
    do
    {
       uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
-	  //printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
+	  printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
    }
    while ( (uStatus & ONSEMI_VITA_SPI_TXFIFO_FULL_BIT) && (--timeout) );
 
    // Send Request
    uRequest = (ONSEMI_VITA_SPI_READ_BIT) | (((Xuint32)uAddr) << 16) | 0x0000;
-   //printf( "[onsemi_vita_spi_read ] Request  = 0x%08X\n\r", uRequest );
+   printf( "[onsemi_vita_spi_read ] Request  = 0x%08X\n\r", uRequest );
    ONSEMI_VITA_SPI_mWriteSlaveReg2(pContext->uBaseAddr_SPI, 0, uRequest);
 
    if ( !timeout )
