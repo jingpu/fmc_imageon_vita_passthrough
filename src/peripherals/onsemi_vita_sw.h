@@ -69,10 +69,16 @@
 //                      Jun 01, 2012: 1.12 Change syncgen configuration code
 //                      Dec 17, 2013: 2.01 Port to Vivado 2013.3
 //----------------------------------------------------------------
-//                      Jan 29, 2015: 3.01 Rename to onsemi_vita_sw
+//                      Jan 29, 2015: 3.1  Rename to onsemi_vita_sw
 //                                         Now uses two cores:
 //                                         - onsemi_vita_spi
 //                                         - onsemi_vita_cam
+//                      Feb 23, 2015: 3.1  Add core_version/core_id registers
+//                      Nov 17, 2015: 3.3  Update driver 
+//                                         - Update init sequence to resolve intermittent issues
+//                                            - Reset the camera receiver before starting the sensor 
+//                                            - Move start of capture to new SENSOR_INIT_STREAMON sequence
+//                                              (corresponds to linux V4L VIDIOC_STREAMON)
 //----------------------------------------------------------------
 
 #ifndef ONSEMI_VITA_SW_H
@@ -376,7 +382,7 @@
 /************************** Function Prototypes ****************************/
 
 /*  Defines the number of registers available for read and write*/
-#define ONSEMI_VITA_SPI_USER_NUM_REG            4
+#define ONSEMI_VITA_SPI_USER_NUM_REG            8
 #define ONSEMI_VITA_CAM_USER_NUM_REG           64
 
 
@@ -388,16 +394,21 @@
 
 // ONSEMI_VITA_SPI definitions
 
-#define ONSEMI_VITA_SPI_CONTROL_REG         0x00000000
-#define ONSEMI_VITA_SPI_STATUS_REG          0x00000000
+#define ONSEMI_VITA_SPI_CORE_VERSION_REG    0x00000000
+   #define ONSEMI_VITA_SPI_CORE_VERSION_VAL 0x03010000 // 3.1.0
+#define ONSEMI_VITA_SPI_CORE_ID_REG         0x00000004
+   #define ONSEMI_VITA_SPI_CORE_ID_VAL      0x4F4E5653 // ASCI for "ONVS"
+
+#define ONSEMI_VITA_SPI_CONTROL_REG         0x00000010
+#define ONSEMI_VITA_SPI_STATUS_REG          0x00000010
    #define ONSEMI_VITA_SPI_RESET_BIT        0x00000002
    #define ONSEMI_VITA_SPI_ERROR_BIT        0x00000100
    #define ONSEMI_VITA_SPI_BUSY_BIT         0x00000200
    #define ONSEMI_VITA_SPI_TXFIFO_FULL_BIT  0x00010000
    #define ONSEMI_VITA_SPI_RXFIFO_EMPTY_BIT 0x01000000
-#define ONSEMI_VITA_SPI_TIMING_REG          0x00000004
-#define ONSEMI_VITA_SPI_TXFIFO_REG          0x00000008
-#define ONSEMI_VITA_SPI_RXFIFO_REG          0x0000000C
+#define ONSEMI_VITA_SPI_TIMING_REG          0x00000014
+#define ONSEMI_VITA_SPI_TXFIFO_REG          0x00000018
+#define ONSEMI_VITA_SPI_RXFIFO_REG          0x0000001C
    #define ONSEMI_VITA_SPI_SYNC2_BIT        0x80000000
    #define ONSEMI_VITA_SPI_SYNC1_BIT        0x40000000
    #define ONSEMI_VITA_SPI_NOP_BIT          0x20000000
@@ -406,8 +417,13 @@
 
 // ONSEMI_VITA_CAM definition
 
-#define ONSEMI_VITA_CAM_CONTROL_REG                   0x00000000
-#define ONSEMI_VITA_CAM_STATUS_REG                    0x00000000
+#define ONSEMI_VITA_CAM_CORE_VERSION_REG              0x00000000
+   #define ONSEMI_VITA_CAM_CORE_VERSION_VAL           0x03010000 // 3.1.0
+#define ONSEMI_VITA_CAM_CORE_ID_REG                   0x00000004
+   #define ONSEMI_VITA_CAM_CORE_ID_VAL                0x4F4E5643 // ASCI for "ONVC"
+   
+#define ONSEMI_VITA_CAM_CONTROL_REG                   0x0000000C
+#define ONSEMI_VITA_CAM_STATUS_REG                    0x0000000C
    #define ONSEMI_VITA_CAM_VITA_RESET_BIT             0x00000001
 
 #define ONSEMI_VITA_CAM_ISERDES_CONTROL_REG           0x00000010
@@ -702,8 +718,10 @@ int onsemi_vita_spi_display_sequence( onsemi_vita_t *pContext, Xuint16 pConfig[]
 #define SENSOR_INIT_SEQ08	  8
 #define SENSOR_INIT_SEQ09	  9
 #define SENSOR_INIT_SEQ10	 10
-#define SENSOR_INIT_ENABLE  101 // Execute sequences 0,1,2,3,4,5,6
-#define SENSOR_INIT_DISABLE 102 // Execute sequences 7, 8, 9, 10
+#define SENSOR_INIT_SEQ06A	 11
+#define SENSOR_INIT_ENABLE   101 // Execute sequences 0,1,2,3,4,5,6
+#define SENSOR_INIT_DISABLE  102 // Execute sequences 7, 8, 9, 10
+#define SENSOR_INIT_STREAMON 103 // Start capture (corresponds to linux V4L VIDIOC_STREAMON)
 int onsemi_vita_sensor_initialize( onsemi_vita_t *pContext, int initID, int bVerbose );
 
 /******************************************************************************

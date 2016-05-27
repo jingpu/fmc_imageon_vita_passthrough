@@ -73,6 +73,11 @@
 //                                         - onsemi_vita_spi
 //                                         - onsemi_vita_cam
 //
+//                      Nov 17, 2015: 3.3  Update driver 
+//                                         - Update init sequence to resolve intermittent issues
+//                                            - Reset the camera receiver before starting the sensor 
+//                                            - Move start of capture to new SENSOR_INIT_STREAMON sequence
+//                                              (corresponds to linux V4L VIDIOC_STREAMON)
 //----------------------------------------------------------------
 
 /***************************** Include Files *******************************/
@@ -104,6 +109,7 @@ Xuint16 vita_spi_seq1[VITA_SPI_SEQ1_QTY][3] =
    {  2, 0xFFFF, 0x0000}, // Monochrome Sensor
 // {  2, 0xFFFF, 0x0001}, // Color Sensor
    { 32, 0xFFFF, 0x2004}, // Configure clock management
+                          //  [14:12] sample point = 2
    { 20, 0xFFFF, 0x0000}, // Configure clock management
    { 17, 0xFFFF, 0x2113}, // Configure PLL
    { 26, 0xFFFF, 0x2280}, // Configure PLL lock detector
@@ -119,6 +125,7 @@ Xuint16 vita_spi_seq3[VITA_SPI_SEQ3_QTY][3] =
    //    V1/SN/SE 10-bit mode with PLL
    {  9, 0xFFFF, 0x0000}, // Release clock generator soft reset
    { 32, 0xFFFF, 0x2006}, // Enable logic clock
+                          //  [14:12] sample point = 2
    { 34, 0xFFFF, 0x0001}  // Enable logic blocks
 };
 
@@ -152,6 +159,7 @@ Xuint16 vita_spi_seq5[VITA_SPI_SEQ5_QTY][3] =
    // Soft Power-Up
    //    V1/SN/SE 10-bit mode with PLL
    { 32, 0xFFFF, 0x2007}, // Enable analog clock distribution
+                          //  [14:12] sample point = 2
    { 10, 0xFFFF, 0x0000}, // Release soft reset state
    { 64, 0xFFFF, 0x0001}, // Enable biasing block
    { 72, 0xFFFF, 0x0203}, // Enable charge pump
@@ -209,6 +217,7 @@ Xuint16 vita_spi_seq9[VITA_SPI_SEQ9_QTY][3] =
    //    V1/SN/SE 10-bit mode with PLL
    { 34, 0xFFFF, 0x0000}, // Disable logic blocks
    { 32, 0xFFFF, 0x2008}, // Disable logic clock
+                          //  [14:12] sample point = 2
    {  9, 0xFFFF, 0x0009}  // Soft reset clock generator
 };
 
@@ -419,6 +428,8 @@ Xuint16 vita_spi_exposure_values[VITA_SPI_EXPOSURE_QTY][3] =
 ******************************************************************************/
 int onsemi_vita_init( onsemi_vita_t *pContext, char szName[], Xuint32 uBaseAddr_SPI, Xuint32 uBaseAddr_CAM )
 {
+   Xuint32 uCoreVersion, uCoreID;
+   
    pContext->uBaseAddr_SPI = uBaseAddr_SPI;
    pContext->uBaseAddr_CAM = uBaseAddr_CAM;
    strcpy( pContext->szName, szName );
@@ -429,6 +440,47 @@ int onsemi_vita_init( onsemi_vita_t *pContext, char szName[], Xuint32 uBaseAddr_
    pContext->uDigitalGain = 128; // 1.0
    pContext->uExposureTime = 90;
 
+   // Detection of onsemi_vita_spi core
+   uCoreVersion = onsemi_vita_spi_reg_read( pContext, ONSEMI_VITA_SPI_CORE_VERSION_REG );
+   uCoreID      = onsemi_vita_spi_reg_read( pContext, ONSEMI_VITA_SPI_CORE_ID_REG );
+   if ( uCoreID == ONSEMI_VITA_SPI_CORE_ID_VAL )
+   {
+      if ( ((uCoreVersion&0xFF000000)>>24) == ((ONSEMI_VITA_SPI_CORE_VERSION_VAL&0xFF000000)>>24) )
+      {
+         //printf( "[onsemi_vita_init] Detected Compatible Version %d.%d.%d of ONSEMI_VITA_SPI core\n\r", ((uCoreVersion&0xFF000000)>>24), ((uCoreVersion&0x00FF0000)>>16), (uCoreVersion&0x0000FFFF) );
+      }
+      else
+      {
+         //printf( "[onsemi_vita_init] Detected Incompatible Version %d.%d.%d of ONSEMI_VITA_SPI core\n\r", ((uCoreVersion&0xFF000000)>>24), ((uCoreVersion&0x00FF0000)>>16), (uCoreVersion&0x0000FFFF) );
+         return 0;
+      }
+   }
+   else
+   {
+      //printf( "[onsemi_vita_init] Failed to detect ONSEMI_VITA_SPI core\n\r" );
+      return 0;
+   }
+   
+   // Detection of onsemi_vita_cam core
+   uCoreVersion = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_CORE_VERSION_REG );
+   uCoreID      = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_CORE_ID_REG );
+   if ( uCoreID == ONSEMI_VITA_CAM_CORE_ID_VAL )
+   {
+      if ( ((uCoreVersion&0xFF000000)>>24) == ((ONSEMI_VITA_CAM_CORE_VERSION_VAL&0xFF000000)>>24) )
+      {
+         //printf( "[onsemi_vita_init] Detected Compatible Version %d.%d.%d of ONSEMI_VITA_CAM core\n\r", ((uCoreVersion&0xFF000000)>>24), ((uCoreVersion&0x00FF0000)>>16), (uCoreVersion&0x0000FFFF) );
+      }
+      else
+      {
+         //printf( "[onsemi_vita_init] Detected Incompatible Version %d.%d.%d of ONSEMI_VITA_CAM core\n\r", ((uCoreVersion&0xFF000000)>>24), ((uCoreVersion&0x00FF0000)>>16), (uCoreVersion&0x0000FFFF) );
+         return 0;
+      }
+   }
+   else
+   {
+      //printf( "[onsemi_vita_init] Failed to detect ONSEMI_VITA_CAM core\n\r" );
+      return 0;
+   }
 
    return 1;
 }
@@ -495,8 +547,9 @@ void onsemi_vita_cam_reg_write( onsemi_vita_t *pContext, Xuint32 uRegOffset, Xui
 ******************************************************************************/
 int onsemi_vita_reset( onsemi_vita_t *pContext, Xuint32 uReset )
 {
-	ONSEMI_VITA_CAM_mWriteSlaveReg0(pContext->uBaseAddr_CAM, 0, uReset);
-
+	//ONSEMI_VITA_CAM_mWriteSlaveReg3(pContext->uBaseAddr_CAM, 0, uReset);
+	onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_CONTROL_REG, uReset );
+	
    return 1;
 }
 
@@ -513,9 +566,10 @@ int onsemi_vita_reset( onsemi_vita_t *pContext, Xuint32 uReset )
 ******************************************************************************/
 int onsemi_vita_spi_config( onsemi_vita_t *pContext, Xuint16 uTiming )
 {
-	ONSEMI_VITA_SPI_mWriteSlaveReg1(pContext->uBaseAddr_SPI, 0, (Xuint32)uTiming);
+	//ONSEMI_VITA_SPI_mWriteSlaveReg5(pContext->uBaseAddr_SPI, 0, (Xuint32)uTiming);
+	onsemi_vita_spi_reg_write( pContext, ONSEMI_VITA_SPI_TIMING_REG, (Xuint32)uTiming );
 
-   return 1;
+	return 1;
 }
 
 /******************************************************************************
@@ -538,31 +592,32 @@ int onsemi_vita_spi_read( onsemi_vita_t *pContext, Xuint16 uAddr, Xuint16 *pData
    int timeout;
 
    // Make sure the RXFIFO is empty
-   uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
-   printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
+   uStatus = onsemi_vita_spi_reg_read(pContext, ONSEMI_VITA_SPI_STATUS_REG);
+
+   //printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
    while ( !(uStatus & ONSEMI_VITA_SPI_RXFIFO_EMPTY_BIT) )
    {
      // Pop (previous) Response from RXFIFO
-     ONSEMI_VITA_SPI_mWriteSlaveReg3(pContext->uBaseAddr_SPI, 0, 0xABBAABBA );
+   	 onsemi_vita_spi_reg_write( pContext, ONSEMI_VITA_SPI_RXFIFO_REG, 0xABBAABBA );
 
-     uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
-     printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
+     uStatus = onsemi_vita_spi_reg_read(pContext, ONSEMI_VITA_SPI_STATUS_REG);
+     //printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
    }
 
    // Wait until TXFIFO is not full
-   timeout = 5;
+   timeout = 99;
    do
    {
-      uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
-	  printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
+      uStatus = onsemi_vita_spi_reg_read(pContext, ONSEMI_VITA_SPI_STATUS_REG);
+	  //printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
    }
    while ( (uStatus & ONSEMI_VITA_SPI_TXFIFO_FULL_BIT) && (--timeout) );
 
    // Send Request
    uRequest = (ONSEMI_VITA_SPI_READ_BIT) | (((Xuint32)uAddr) << 16) | 0x0000;
-   printf( "[onsemi_vita_spi_read ] Request  = 0x%08X\n\r", uRequest );
-   ONSEMI_VITA_SPI_mWriteSlaveReg2(pContext->uBaseAddr_SPI, 0, uRequest);
-
+   //printf( "[onsemi_vita_spi_read ] Request  = 0x%08X\n\r", uRequest );
+   onsemi_vita_spi_reg_write(pContext, ONSEMI_VITA_SPI_TXFIFO_REG, uRequest);
+   
    if ( !timeout )
    {
 	   printf( "[onsemi_vita_spi_read ] Timed out waiting for !TXFIFO_FULL\n\r" );
@@ -573,7 +628,7 @@ int onsemi_vita_spi_read( onsemi_vita_t *pContext, Xuint16 uAddr, Xuint16 *pData
    timeout = 999;
    do
    {
-      uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
+      uStatus = onsemi_vita_spi_reg_read(pContext, ONSEMI_VITA_SPI_STATUS_REG);
 	  //printf( "[onsemi_vita_spi_read ] Status   = 0x%08X\n\r", uStatus );
    }
    while ( (uStatus & ONSEMI_VITA_SPI_RXFIFO_EMPTY_BIT) && (--timeout) );
@@ -586,10 +641,12 @@ int onsemi_vita_spi_read( onsemi_vita_t *pContext, Xuint16 uAddr, Xuint16 *pData
    }
 
    // Pop Response from RXFIFO
-   ONSEMI_VITA_SPI_mWriteSlaveReg3(pContext->uBaseAddr_SPI, 0, 0xABBAABBA );
+   onsemi_vita_spi_reg_write( pContext, ONSEMI_VITA_SPI_RXFIFO_REG, 0xABBAABBA );
+   
 
    // Get Response
-   uResponse = ONSEMI_VITA_SPI_mReadSlaveReg3(pContext->uBaseAddr_SPI, 0);
+   uResponse = onsemi_vita_spi_reg_read(pContext, ONSEMI_VITA_SPI_RXFIFO_REG);
+
    //printf( "[onsemi_vita_spi_read ] Response = 0x%08X\n\r", uResponse );
 
    *pData = (Xuint16)(uResponse & 0x0000FFFF);
@@ -620,7 +677,7 @@ int onsemi_vita_spi_write( onsemi_vita_t *pContext, Xuint16 uAddr, Xuint16 uData
    timeout = 99;
    do
    {
-      uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
+	  uStatus = onsemi_vita_spi_reg_read(pContext, ONSEMI_VITA_SPI_STATUS_REG);
 	  //printf( "[onsemi_vita_spi_write] Status   = 0x%08X\n\r", uStatus );
    }
    while ( (uStatus & ONSEMI_VITA_SPI_TXFIFO_FULL_BIT) && !(--timeout) );
@@ -634,7 +691,7 @@ int onsemi_vita_spi_write( onsemi_vita_t *pContext, Xuint16 uAddr, Xuint16 uData
    // Send Request
    uRequest = (ONSEMI_VITA_SPI_WRITE_BIT) | (((Xuint32)uAddr) << 16) | ((Xuint16)uData);
    //printf( "[onsemi_vita_spi_write] Request  = 0x%08X\n\r", uRequest );
-   ONSEMI_VITA_SPI_mWriteSlaveReg2(pContext->uBaseAddr_SPI, 0, uRequest);
+   onsemi_vita_spi_reg_write(pContext, ONSEMI_VITA_SPI_TXFIFO_REG, uRequest);
 
    return 1;
 }
@@ -660,7 +717,7 @@ int onsemi_vita_spi_nop( onsemi_vita_t *pContext )
    timeout = 99;
    do
    {
-      uStatus = ONSEMI_VITA_SPI_mReadSlaveReg0(pContext->uBaseAddr_SPI, 0);
+	  uStatus = onsemi_vita_spi_reg_read(pContext, ONSEMI_VITA_SPI_STATUS_REG);
 	  //printf( "[onsemi_vita_spi_nop  ] Status   = 0x%08X\n\r", uStatus );
    }
    while ( (uStatus & ONSEMI_VITA_SPI_TXFIFO_FULL_BIT) && !(--timeout) );
@@ -674,7 +731,7 @@ int onsemi_vita_spi_nop( onsemi_vita_t *pContext )
    // Send Request
    uRequest = (ONSEMI_VITA_SPI_NOP_BIT) | 0x00000000;
    //printf( "[onsemi_vita_spi_nop  ] Request  = 0x%08X\n\r", uRequest );
-   ONSEMI_VITA_SPI_mWriteSlaveReg2(pContext->uBaseAddr_SPI, 0, uRequest);
+   onsemi_vita_spi_reg_write(pContext, ONSEMI_VITA_SPI_TXFIFO_REG, uRequest);
 
    return 1;
 }
@@ -1007,100 +1064,85 @@ int onsemi_vita_sensor_initialize(  onsemi_vita_t *pContext, int initID, int bVe
       }
       onsemi_vita_spi_write_sequence( pContext, vita_spi_seq5, VITA_SPI_SEQ5_QTY );
       //
-      uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-      if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-
-      uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-      if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-
-      if ( bVerbose ) printf( "VITA ISERDES - Waiting for CLK_RDY to assert\n\r");
-      uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-      if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-      timeout = 9;
-      while ( !(uStatus & 0x00000100) && --timeout  )
-      {
-	     uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-         if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-         usleep(1);
-      }
-      if ( !timeout )
-      {
-         if ( bVerbose ) printf( "\tTimed Out !!!\n\r" );
-         return 0;
-      }
-
-      if ( bVerbose ) printf( "VITA ISERDES - Align Start\n\r" );
-      onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_ISERDES_CONTROL_REG, ONSEMI_VITA_CAM_ISERDES_ALIGN_START_BIT );
-
-      if ( bVerbose ) printf( "VITA ISERDES - Waiting for ALIGN_BUSY to assert\n\r");
-      uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-      if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-      timeout = 9;
-      while ( !(uStatus & 0x00000200) && --timeout  )
-      {
-         uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-         if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-         usleep(1);
-      }
-      if ( !timeout )
-      {
-         if ( bVerbose ) printf( "\tTimed Out !!!\n\r" );
-         return 0;
-      }
-
-      onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_ISERDES_CONTROL_REG, 0x00000000);
-
-      if ( bVerbose ) printf( "VITA ISERDES - Waiting for ALIGN_BUSY to de-assert\n\r");
-      uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-      if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-      timeout = 9;
-      while ( (uStatus & 0x00000200) && --timeout )
-      {
-         uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-         if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-         usleep(1);
-      }
-      if ( !timeout )
-      {
-         if ( bVerbose ) printf( "\tTimed Out !!!\n\r" );
-      }
-
-      uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
-      if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
-
    }
 
    if ( (initID == SENSOR_INIT_SEQ06) || (initID == SENSOR_INIT_ENABLE) )
    {
-#if 1
-      if ( bVerbose )
-      {
-         printf("VITA SPI Sequence   - Crop ROI0 to 1920x1080\n\r" );
-         onsemi_vita_spi_display_sequence( pContext, vita_roi0_crop_1080p_seq, VITA_ROI0_CROP_1080P_QTY );
-      }
-      onsemi_vita_spi_write_sequence( pContext, vita_roi0_crop_1080p_seq, VITA_ROI0_CROP_1080P_QTY );
-      //
-      if ( bVerbose )
-      {
-         printf("VITA SPI Sequence   - Set mult_timer to line resolution\n\r" );
-         onsemi_vita_spi_display_sequence( pContext, vita_mult_timer_line_resolution_seq, VITA_MULT_TIMER_LINE_RESOLUTION_QTY );
-      }
-      onsemi_vita_spi_write_sequence( pContext, vita_mult_timer_line_resolution_seq, VITA_MULT_TIMER_LINE_RESOLUTION_QTY );
-      //
-      if ( bVerbose )
-      {
-         printf("VITA SPI Sequence   - Set auto-exposure to ON\n\r" );
-         onsemi_vita_spi_display_sequence( pContext, vita_autoexp_on_seq, VITA_AUTOEXP_ON_QTY );
-      }
-      onsemi_vita_spi_write_sequence( pContext, vita_autoexp_on_seq, VITA_AUTOEXP_ON_QTY );
-#endif
+	         if ( bVerbose ) printf( "VITA ISERDES - Asserting Reset\n\r" );
+	         onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_ISERDES_CONTROL_REG, ONSEMI_VITA_CAM_ISERDES_RESET_BIT );
+	         if ( bVerbose ) printf( "VITA DECODER - Asserting Reset\n\r" );
+	         onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_DECODER_CONTROL_REG, ONSEMI_VITA_CAM_DECODER_RESET_BIT );
+	         if ( bVerbose ) printf( "VITA CRC - Asserting Reset\n\r" );
+	         onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_CRC_CONTROL_REG, ONSEMI_VITA_CAM_CRC_INITVALUE_BIT | ONSEMI_VITA_CAM_CRC_RESET_BIT );
 
-      if ( bVerbose )
-      {
-         printf("VITA SPI Sequence 6 - Enable Sequencer\n\r" );
-         onsemi_vita_spi_display_sequence( pContext, vita_spi_seq6, VITA_SPI_SEQ6_QTY );
-      }
-      onsemi_vita_spi_write_sequence( pContext, vita_spi_seq6, VITA_SPI_SEQ6_QTY );
+	         usleep(10); // 10 usec
+
+	         if ( bVerbose ) printf( "VITA ISERDES - Releasing Reset\n\r" );
+	         onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_ISERDES_CONTROL_REG, 0x00000000 );
+	         if ( bVerbose ) printf( "VITA DECODER - Releasing Reset\n\r" );
+	         onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_DECODER_CONTROL_REG, 0x00000000 );
+	         if ( bVerbose ) printf( "VITA CRC - Releasing Reset\n\r" );
+	         onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_CRC_CONTROL_REG, ONSEMI_VITA_CAM_CRC_INITVALUE_BIT );
+
+	         sleep(1); // 1 sec (time to get clocks to lock)
+
+	         uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
+	         if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
+
+	         uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
+	         if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
+
+	         if ( bVerbose ) printf( "VITA ISERDES - Waiting for CLK_RDY to assert\n\r");
+	         uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
+	         if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
+	         timeout = 9;
+	         while ( !(uStatus & 0x00000100) && --timeout  )
+	         {
+	   	     uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
+	            if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
+	            usleep(1);
+	         }
+	         if ( !timeout )
+	         {
+	            if ( bVerbose ) printf( "\tTimed Out !!!\n\r" );
+	            return 0;
+	         }
+
+	         if ( bVerbose ) printf( "VITA ISERDES - Align Start\n\r" );
+	         onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_ISERDES_CONTROL_REG, ONSEMI_VITA_CAM_ISERDES_ALIGN_START_BIT );
+
+	         if ( bVerbose ) printf( "VITA ISERDES - Waiting for ALIGN_BUSY to assert\n\r");
+	         uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
+	         if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
+	         timeout = 9;
+	         while ( !(uStatus & 0x00000200) && --timeout  )
+	         {
+	            uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
+	            if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
+	            usleep(1);
+	         }
+	         if ( !timeout )
+	         {
+	            if ( bVerbose ) printf( "\tTimed Out !!!\n\r" );
+	            return 0;
+	         }
+
+	         onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_ISERDES_CONTROL_REG, 0x00000000);
+
+	         if ( bVerbose ) printf( "VITA ISERDES - Waiting for ALIGN_BUSY to de-assert\n\r");
+	         uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
+	         if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
+	         timeout = 9;
+	         while ( (uStatus & 0x00000200) )
+	         {
+	            uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_ISERDES_STATUS_REG );
+	            if ( bVerbose ) printf( "VITA ISERDES - Status = 0x%08X\n\r", uStatus );
+	            usleep(1);
+	         }
+	         if ( !timeout )
+	         {
+	            if ( bVerbose ) printf( "\tTimed Out !!!\n\r" );
+	         }
 
       if ( bVerbose ) printf( "VITA ISERDES - Enabling FIFO enable\n\r" );
       onsemi_vita_cam_reg_write( pContext, ONSEMI_VITA_CAM_ISERDES_CONTROL_REG, ONSEMI_VITA_CAM_ISERDES_FIFO_ENABLE_BIT );
@@ -1109,12 +1151,26 @@ int onsemi_vita_sensor_initialize(  onsemi_vita_t *pContext, int initID, int bVe
       uControl = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_DECODER_CONTROL_REG );
       if ( bVerbose ) printf( "VITA DECODER - Control = 0x%08X\n\r", uControl );
 
+      timeout = 10;
+
+      do {
       uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_CRC_STATUS_REG );
       if ( bVerbose ) printf( "VITA CRC - Status = 0x%08X\n\r", uStatus );
 
       usleep(100);
+      } while ((uStatus != 0) && --timeout);
       uStatus = onsemi_vita_cam_reg_read( pContext, ONSEMI_VITA_CAM_CRC_STATUS_REG );
       if ( bVerbose ) printf( "VITA CRC - Status = 0x%08X\n\r", uStatus );
+   }
+
+   if ( (initID == SENSOR_INIT_SEQ06A) || (initID == SENSOR_INIT_STREAMON) )
+   {
+      if ( bVerbose )
+      {
+         printf("VITA SPI Sequence 6 - Enable Sequencer\n\r" );
+         onsemi_vita_spi_display_sequence( pContext, vita_spi_seq6, VITA_SPI_SEQ6_QTY );
+      }
+      onsemi_vita_spi_write_sequence( pContext, vita_spi_seq6, VITA_SPI_SEQ6_QTY );
    }
 
    if ( (initID == SENSOR_INIT_SEQ07) || (initID == SENSOR_INIT_DISABLE) )
