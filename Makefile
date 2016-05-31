@@ -1,7 +1,7 @@
 #CC=arm-linux-gnueabihf-gcc
 #CXX=arm-linux-gnueabihf-g++
-CC ?= gcc
-CXX ?= g++
+CC = gcc
+CXX = g++
 IFLAGS = -I$(SRC_DIR) -I$(SRC_DIR)/peripherals
 CPPFLAGS = -g -Wall -MD -MP $(IFLAGS) -O
 LDFLAGS = -lpthread
@@ -16,7 +16,6 @@ SOURCES := $(SOURCES:$(SRC_DIR)/%=%)
 OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 
 all: passthrough_linux
-test:
 
 passthrough_linux: $(OBJECTS)
 	$(CC) $^ -o $@ $(LDFLAGS)
