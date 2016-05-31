@@ -16,6 +16,7 @@ SOURCES := $(SOURCES:$(SRC_DIR)/%=%)
 OBJECTS = $(SOURCES:%.c=$(BUILD_DIR)/%.o)
 
 all: passthrough_linux
+test:
 
 passthrough_linux: $(OBJECTS)
 	$(CC) $^ -o $@ $(LDFLAGS)
